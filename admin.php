@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/inc/bootstrap.php';
 require_once __DIR__ . '/inc/playlist.php';
+require_once __DIR__ . '/inc/admin_helpers.php';
 
 $config = load_config();
 $playlistData = playlist_load_normalized();
@@ -29,41 +30,12 @@ if (isset($_GET['cleanup'])) {
     $cleanupMessage = 'Aufräumen abgeschlossen. Gelöscht: ' . $deleted . ' | Behalten: ' . $kept;
 }
 
-function slideTypeLabel(array $item): string
-{
-    $type = strtolower((string)($item['type'] ?? ''));
-    if ($type === 'image' && (($item['sourceType'] ?? '') === 'pdf')) {
-        return 'PDF-Seite';
-    }
-
-    $map = [
-        'clock' => 'Uhr',
-        'image' => 'Bild',
-        'video' => 'Video',
-        'website' => 'Webseite',
-        'pdf' => 'PDF',
-    ];
-
-    return $map[$type] ?? $type;
-}
-
-function colorField(string $label, string $textName, string $pickerName, string $value): string
-{
-    $safeLabel = h($label);
-    $safeTextName = h($textName);
-    $safePickerName = h($pickerName);
-    $safeValue = h($value);
-
-    return <<<HTML
-    <div>
-      <label>{$safeLabel}</label>
-      <div class="colorField">
-        <input type="text" name="{$safeTextName}" value="{$safeValue}" data-color-text>
-        <input type="color" name="{$safePickerName}" value="{$safeValue}" data-color-picker>
-      </div>
-    </div>
-HTML;
-}
+$buildTs = (string) max(
+    @filemtime(__FILE__) ?: 0,
+    @filemtime(__DIR__ . '/assets/css/admin.css') ?: 0,
+    @filemtime(__DIR__ . '/assets/js/admin.js') ?: 0,
+    time()
+);
 ?>
 <!doctype html>
 <html lang="de">
@@ -71,35 +43,7 @@ HTML;
 <meta charset="utf-8">
 <title>Infoscreen2 Verwaltung</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
-body{font-family:Arial,Helvetica,sans-serif;margin:18px;background:#f4f6f8;color:#1f2937}
-h1,h2{margin:0 0 12px}
-.card{background:#fff;border:1px solid #d7dce2;border-radius:12px;padding:16px;margin-bottom:16px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
-label{display:block;font-size:12px;font-weight:700;margin-bottom:6px;color:#475569}
-input[type=text],input[type=url],input[type=number],select,input[type=file]{width:100%;box-sizing:border-box;padding:10px;border:1px solid #cbd5e1;border-radius:8px;background:#fff}
-input[type=color]{width:56px;min-width:56px;height:42px;padding:3px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;cursor:pointer}
-button,.btn{appearance:none;border:0;border-radius:10px;padding:10px 14px;background:#2563eb;color:#fff;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block}
-button.secondary,.btn.secondary{background:#475569}
-button.warn,.btn.warn{background:#d97706}
-button.danger,.btn.danger{background:#dc2626}
-.actions{display:flex;flex-wrap:wrap;gap:8px}
-small,.small{color:#64748b}
-table{width:100%;border-collapse:collapse}
-th,td{padding:10px 8px;border-top:1px solid #e5e7eb;vertical-align:top;text-align:left}
-th{font-size:12px;text-transform:uppercase;color:#64748b}
-.badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:700;background:#e2e8f0;color:#0f172a}
-.ok{background:#dcfce7;color:#166534}
-.off{background:#fee2e2;color:#991b1b}
-.toolbar{display:flex;flex-wrap:wrap;gap:8px}
-.editRow{display:none;background:#f8fafc}
-code{background:#eef2ff;padding:2px 6px;border-radius:6px}
-.statusLine{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
-.notice{background:#ecfeff;border:1px solid #a5f3fc;color:#155e75;padding:12px 14px;border-radius:10px;margin-bottom:16px}
-.colorField{display:flex;gap:8px;align-items:center}
-.colorField input[type=text]{flex:1 1 auto}
-.formActions{margin-top:18px;display:flex;gap:10px;flex-wrap:wrap}
-</style>
+<link rel="stylesheet" href="assets/css/admin.css?v=<?= htmlspecialchars($buildTs, ENT_QUOTES, 'UTF-8') ?>">
 </head>
 <body>
 
@@ -188,7 +132,7 @@ code{background:#eef2ff;padding:2px 6px;border-radius:6px}
         </select>
       </div>
 
-      <?= colorField(
+      <?= admin_color_field(
           'Hintergrundfarbe',
           'background',
           'backgroundPicker',
@@ -211,14 +155,14 @@ code{background:#eef2ff;padding:2px 6px;border-radius:6px}
         <input type="number" name="clockDuration" min="1" value="<?= (int)($config['clock']['defaultDuration'] ?? 10) ?>">
       </div>
 
-      <?= colorField(
+      <?= admin_color_field(
           'Uhr Hintergrund',
           'clockBackground',
           'clockBackgroundPicker',
           (string)($config['clock']['background'] ?? '#ffffff')
       ) ?>
 
-      <?= colorField(
+      <?= admin_color_field(
           'Uhr Textfarbe',
           'clockTextColor',
           'clockTextColorPicker',
@@ -325,7 +269,7 @@ code{background:#eef2ff;padding:2px 6px;border-radius:6px}
         $id = (string)($item['id'] ?? '');
         $enabled = !empty($item['enabled']);
         $title = (string)($item['title'] ?? '');
-        $typeLabel = slideTypeLabel($item);
+        $typeLabel = admin_slide_type_label($item);
         $infoParts = [];
         if (isset($item['duration'])) {
             $infoParts[] = 'Dauer: ' . h((string)$item['duration']) . ' s';
@@ -397,76 +341,7 @@ code{background:#eef2ff;padding:2px 6px;border-radius:6px}
   </table>
 </div>
 
-<script>
-function toggleEdit(id) {
-  const row = document.getElementById(id);
-  if (!row) {
-    return;
-  }
-  row.style.display = row.style.display === 'table-row' ? 'none' : 'table-row';
-}
-
-async function loadLiveStatus() {
-  const target = document.getElementById('liveStatus');
-  if (!target) {
-    return;
-  }
-
-  try {
-    const response = await fetch('status.php', { cache: 'no-store' });
-    const data = await response.json();
-
-    if (!data || data.ok !== true) {
-      target.textContent = 'Live-Status konnte nicht geladen werden.';
-      return;
-    }
-
-    target.textContent =
-      'Player: ' + (data.player_running ? 'läuft' : 'steht') +
-      ' | Apache: ' + (data.apache_running ? 'läuft' : 'steht') +
-      ' | Aktivierte Folien: ' + data.enabled_slides +
-      ' | Letzte Watchdog-Zeile: ' + (data.last_log_line || 'keine');
-  } catch (error) {
-    target.textContent = 'Live-Status konnte nicht geladen werden.';
-  }
-}
-
-function bindColorFields() {
-  document.querySelectorAll('.colorField').forEach((field) => {
-    const text = field.querySelector('[data-color-text]');
-    const picker = field.querySelector('[data-color-picker]');
-
-    if (!text || !picker) {
-      return;
-    }
-
-    const normalize = (value) => {
-      const trimmed = String(value || '').trim();
-      return /^#[0-9a-fA-F]{6}$/.test(trimmed) ? trimmed : null;
-    };
-
-    const syncFromText = () => {
-      const normalized = normalize(text.value);
-      if (normalized) {
-        picker.value = normalized;
-      }
-    };
-
-    const syncFromPicker = () => {
-      text.value = picker.value;
-    };
-
-    text.addEventListener('input', syncFromText);
-    picker.addEventListener('input', syncFromPicker);
-
-    syncFromText();
-  });
-}
-
-loadLiveStatus();
-bindColorFields();
-setInterval(loadLiveStatus, 15000);
-</script>
+<script src="assets/js/admin.js?v=<?= htmlspecialchars($buildTs, ENT_QUOTES, 'UTF-8') ?>"></script>
 
 </body>
 </html>
