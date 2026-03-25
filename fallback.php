@@ -19,9 +19,10 @@ $text = is_file($flag)
     ? trim((string)file_get_contents($flag))
     : 'Fallback aktiv';
 
+$previewMode = isset($_GET['preview']) && $_GET['preview'] === '1';
+
 $buildTs = (string) max(
     @filemtime(__FILE__) ?: 0,
-    @filemtime(__DIR__ . '/assets/css/fallback.css') ?: 0,
     @filemtime(__DIR__ . '/assets/runtime_sync.js') ?: 0,
     time()
 );
@@ -33,7 +34,51 @@ $buildTs = (string) max(
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Infoscreen2 Fallback</title>
-  <link rel="stylesheet" href="assets/css/fallback.css?v=<?= htmlspecialchars($buildTs, ENT_QUOTES, 'UTF-8') ?>">
+  <style>
+  html, body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    font-family: Arial, Helvetica, sans-serif;
+    background: #111;
+    color: #fff;
+    cursor: none;
+    overflow: hidden;
+  }
+  .wrap {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 30px;
+    box-sizing: border-box;
+  }
+  h1 {
+    font-size: clamp(32px, 5vw, 72px);
+    margin: 0 0 20px;
+  }
+  p {
+    font-size: clamp(18px, 2vw, 30px);
+    margin: 8px 0;
+  }
+  small {
+    opacity: 0.8;
+  }
+  a {
+    color: #fff;
+  }
+  .previewHint {
+    margin-top: 18px;
+    padding: 10px 14px;
+    border: 1px solid rgba(255,255,255,0.35);
+    border-radius: 10px;
+    background: rgba(255,255,255,0.08);
+    font-size: 16px;
+  }
+  </style>
 </head>
 <body>
   <div class="wrap">
@@ -44,6 +89,11 @@ $buildTs = (string) max(
     <p>Consecutive Failures: <strong><?= (int)($state['consecutive_failures'] ?? 0) ?></strong></p>
     <p>Neustarts in 30 Minuten: <strong><?= count((array)($state['restarts'] ?? [])) ?></strong></p>
     <small>Bitte Ursache prüfen und danach den Watchdog zurücksetzen.</small>
+
+    <?php if ($previewMode): ?>
+      <div class="previewHint">Vorschau aktiv: automatische Umschaltung ist deaktiviert.</div>
+    <?php endif; ?>
+
     <p style="margin-top:24px;"><a href="admin.php">Zur Verwaltung</a></p>
   </div>
 
@@ -51,7 +101,8 @@ $buildTs = (string) max(
   window.APP_RUNTIME = {
     currentView: 'fallback',
     statusUrl: 'status.php',
-    reloadRequestedAt: <?= (int)($state['reload_requested_at'] ?? 0) ?>
+    reloadRequestedAt: <?= (int)($state['reload_requested_at'] ?? 0) ?>,
+    previewMode: <?= $previewMode ? 'true' : 'false' ?>
   };
   </script>
   <script src="assets/runtime_sync.js?v=<?= htmlspecialchars($buildTs, ENT_QUOTES, 'UTF-8') ?>"></script>
